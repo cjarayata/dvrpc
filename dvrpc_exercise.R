@@ -49,5 +49,5 @@ trim2 <- cbind(data2[, 2:3], trim2)
 ## use json object to query out available API info from certain URLs
 ## use for bonus VZ stuff? commuting by type?
 
-
+# testing some changes to make sure remote to github works
 
