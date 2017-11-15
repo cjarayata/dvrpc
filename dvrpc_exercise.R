@@ -4,6 +4,12 @@ setwd("~/Desktop/DVRPC/DVRPCExercise")
 
 data <- read.csv("states/alabama.csv", header = T)
 
+data2 <- read.csv("states/alaska.csv", header = T)
+
+data2 <- read.csv("states/test.csv", header = T)
+
+# looks like gary does not know a streamlined way to download all 50 states info
+
 # for each state, trim dataset
 ## parse GEO.display.label into state, county, tract number
 ## keep raw tract identifier
@@ -23,11 +29,12 @@ trim <- data[, colnames(data) %in% variables]
 # now the dataset is ready for one state, ish
 trim <- cbind(data[, 2:3], trim)
 
+trim2 <- data2[, colnames(data2) %in% variables]
+
+# now the dataset is ready for one state, ish
+trim2 <- cbind(data2[, 2:3], trim2)
+
 # give useful variable names
-
-# will i need to read in 50 datasets, one for each state?
-# there's gotta be a streamlined way to do this
-
 
 
 # sort and rank by poverty, by race (two rankings)
@@ -35,7 +42,12 @@ trim <- cbind(data[, 2:3], trim)
 
 # also do national rankings! can ddply handle this?
 
-# bonus VZ stuff? commuting by type?
+# once i write shiny to cut the data a bunch of different ways
+# will need to convert the census tract information to lat/long boundaries
+## leaflet package
+## mr data to convert to json object
+## use json object to query out available API info from certain URLs
+## use for bonus VZ stuff? commuting by type?
 
 
 
