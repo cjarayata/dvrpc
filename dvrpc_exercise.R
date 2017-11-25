@@ -4,82 +4,23 @@ pacman::p_load(reshape2)
 
 setwd("~/Desktop/DVRPC/DVRPCExercise")
 
-data <- head(read.csv("data/alabama.csv", header = T))
 
-data2 <- read.csv("data/alaska.csv", header = T)
-
-
-# poverty level cols, race cols
-## format is HC01_EST / HC01_MOE [header column 01, estimate / margin of error]
-## then _VC[number]
-## 18 is white, 19 through 25 is what you want to add
-## 56 is poverty level 200% and below
-
-# choosing columns to keep
-cols <- c("HC01_EST", "HC01_MOE")
-vars <- c(18:25, 56) # numbered list
-vars2 <- paste0("_VC", vars) # pasted list eg. "_VC18"
-variables <- as.vector(outer(cols, vars2, paste0, sep="")) # all permutations
-trim <- data[, colnames(data) %in% variables] # cut dataframe
-
-# add geo identifiers
-state <- cbind(data[, 2:3], trim)
-
-# initialize processed dataframe
-state.process <- data.frame(matrix(ncol = 8, nrow = nrow(state)))
-colnames(state.process) <- c("geo.id", "tract", "white.est", "white.err",
-                             "nonwhite.est", "nonwhite.err", "lowincome.est", "lowincome.err")
-
-state.process[,c(1:4)] <- state[,c(1:4)] # IDs plus white estimate and white error
-state.process["nonwhite.est"] <- state[,5] + # black
-                                  state[,7] + # american indian
-                                  state[,9] + # asian
-                                  state[,11] + # hawaiian
-                                  state[,13] + #some other
-                                  state[,15] # two or more
-state.process["nonwhite.err"] <- state[,6] + # black
-                                  state[,8] + # american indian
-                                  state[,10] + # asian
-                                  state[,12] + # hawaiian
-                                  state[,14] + #some other
-                                  state[,16] # two or more
-state.process["lowincome.est"] <- state[17]
-state.process["lowincome.err"] <- state[18]
-
-
-# parse tract
-location <- colsplit(state.process$tract, ",", c("tract", "county", "state"))
-
-state.process <- cbind(state.process[1],
-                       location,
-                       state.process[3:length(state.process)])
-
-# obtaining rankings for nonwhite and poverty rankings
-state.process$nonwhite.rank <- NA
-state.process$nonwhite.rank[order(-state.process$nonwhite.est)] <- 1:nrow(state.process)
-
-state.process$poverty.rank <- NA
-state.process$poverty.rank[order(-state.process$lowincome.est)] <- 1:nrow(state.process)
-
-# sum ranks to find overlapping tracts
-state.process$combo.rank <- state.process$nonwhite.rank + state.process$poverty.rank
-
-# the finale
-top.tract.state <- state.process[state.process$nonwhite.rank <=10 | # top 10
-                                   state.process$poverty.rank <= 10 | # top 10
-                                   state.process$combo.rank <= 50, ] # any tracts with combo rank of 50 or less
-
-rownames(top.tract.state) <- NULL
-
-
-############### LOOP
-# now i am going to need to process every single file, and then rbind it together
+# # reading in manually to poke around the data
+# data <- head(read.csv("data/alabama.csv", header = T))
+# 
+# data2 <- read.csv("data/alaska.csv", header = T)
 
 
 # list files
 list <- list.files(path = "data")
 
 # variables to keep
+# poverty level cols, race cols
+## format is HC01_EST / HC01_MOE [header column 01, estimate / margin of error]
+## then _VC[number]
+## 18 is white, 19 through 25 is what you want to add
+## 56 is poverty level 200% and below
+
 cols <- c("HC01_EST", "HC01_MOE")
 vars <- c(18:25, 56) # numbered list
 vars2 <- paste0("_VC", vars) # pasted list eg. "_VC18"
@@ -146,7 +87,7 @@ for(i in 1:length(list)){
     
     temp <- subset[subset$nonwhite.rank <= 10 | # top 10
                      subset$poverty.rank <= 10 | # top 10
-                     subset$combo.rank <= 50, ] # any tracts with combo rank of 50 or less
+                     subset$combo.rank <= 30, ] # any tracts with combo rank of 50 or less
     rownames(temp) <- NULL
     top.tracts <- rbind(top.tracts, temp)
   }
@@ -157,22 +98,55 @@ as.numeric((proc.time() - ptm)[3]) # approx 13 seconds
 top.tracts <- top.tracts[-1, ]
 rownames(top.tracts) <- NULL
 
-# sanity check, make sure all 50 states represented
+# sanity check, make sure all 50 states (plus DC) represented
+length(unique(top.tracts$state))
+
+# do national rankings
+
+top.tracts$nw.nat.rank[order(-top.tracts$nonwhite.est)] <- 1:nrow(top.tracts)
+top.tracts$pov.nat.rank[order(-top.tracts$lowincome.est)] <- 1:nrow(top.tracts)
+top.tracts$combo.nat.rank <- top.tracts$nw.nat.rank + top.tracts$pov.nat.rank
+
+
+# make a descriptive name for ggplot labels
+## format tract ##, county, state
+
+tract.clean <- gsub(pattern = "Census Tract ", "#", top.tracts$tract)
+county.clean <- gsub(pattern = " County", "", top.tracts$county)
+tract.label <- paste0(tract.clean, ",", county.clean, ",", top.tracts$state)
+
+top.tracts <- cbind
 
 save(top.tracts, file = "top.tracts")
 
 load("top.tracts")
 
-# do national rankings
-
 
 
 # markdown for processing pipeline; be descriptive
+
+
 
 # SHINY
 ## have a viewer that will show ten:
 ## nationwide [default view]
 ## by state (drop down to pick a state)
+
+
+library(ggplot2)
+
+nw.one <- top.tracts[top.tracts$nonwhite.rank == 1, ]
+
+ggplot(nw.one, aes(x = state, y = nonwhite.est)) +
+  geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
+  geom_errorbar(aes(ymin = nonwhite.est - nonwhite.err,
+                    ymax = nonwhite.est + nonwhite.err,
+                    width = 0.5)) +
+  ylab("Non-white Estimate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+  # scale_y_continuous(expand = c(0, 0, 1000, 0))
+
+
 
 
 # markdown or shiny
@@ -184,4 +158,5 @@ load("top.tracts")
 ## commuting by type? amt money spent on infrastructure per tract?
 ## number of injuries that occur in each tract? (but i'd need to download a ton more data for this)
 
-
+# table S0801 - commuting characteristics by sex
+# is there a way to look at past data and extrapolate to future?
