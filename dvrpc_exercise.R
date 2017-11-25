@@ -149,14 +149,49 @@ ggplot(nw.one, aes(x = state, y = nonwhite.est)) +
 
 
 
+# PA commuting stuff!
+## table S0801 - commuting characteristics by sex - just for PA by tracts
+
+
+pa.commuting <- read.csv("commuting/pa_commuting.csv", header = T)
+
+# what are the variables i need?
+## GEO.id2, GEO.display.label
+## HC01_EST_VC01 - total workers
+## HC02, HC03 - male/female split
+## EST_VC03 - car/truck/van percentage
+### need male/female splits
+## EST_VC10 - public
+## VC11 - walked
+## VC12 - cycle
+## VC13 - other (taxi/uber?, motorcycle, other)
+## VC55 - mean time to work
+# multiply total by the %age to get rough estimate
+
+cols <- c("HC01_EST", "HC02_EST", "HC03_EST")
+vars <- c("01", "03", 10:13, "55") # numbered list
+vars2 <- paste0("_VC", vars) # pasted list eg. "_VC18"
+variables <- as.vector(outer(cols, vars2, paste0, sep="")) # all permutations
+
+
+commute.trim <- pa.commuting[, colnames(pa.commuting) %in% variables]
+commute <- cbind(pa.commuting[, 2:3], commute.trim)
+
+pa <- top.tracts[top.tracts$state == " Pennsylvania", ]
+
+pa.commute <- commute[commute$GEO.id2 %in% pa$geo.id, ]
+
+# need to rename these columns later
+save(pa.commute, file = "commuting/pa.commute")
+
+
 # markdown or shiny
 # VZ bonus material:
 ## convert the census tract information to lat/long boundaries (i might need to take the first geo.id instead)
 ## leaflet package
 ## mr data to convert to json object
 ## use json object to query out available API info from certain URLs
-## commuting by type? amt money spent on infrastructure per tract?
 ## number of injuries that occur in each tract? (but i'd need to download a ton more data for this)
 
-# table S0801 - commuting characteristics by sex
+
 # is there a way to look at past data and extrapolate to future?
