@@ -76,7 +76,10 @@ shinyUI(fluidPage(
                        p("Bar Plot: Estimate +/- Error"),
                        # add a warning about the summing might be incorrect?
                        plotOutput("state.plot3"),
-                       dataTableOutput("state.data.out3"))
+                       dataTableOutput("state.data.out3")),
+      
+      conditionalPanel(condition = "input.State == ' Pennsylvania'",
+                       imageOutput("philly.tract"))
 
     )
   )

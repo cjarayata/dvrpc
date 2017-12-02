@@ -124,6 +124,14 @@ shinyServer(function(input, output) {
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
   })
   
+  output$philly.tract <- renderImage({
+    filename <- normalizePath(file.path(paste0(getwd(),'/phila_tracts.png')), winslash = "/")
+    list(src = filename,
+         alt = "Philadelphia Tracts")
+  }, deleteFile = FALSE)
+  
+
+  
   # need to rethink combo rank a little bit
   ## rewrite processing script to be based on sum of both, even though you know
   ## there is a great deal of overlap between non-white and low-income?
