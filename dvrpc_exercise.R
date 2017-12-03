@@ -1,6 +1,6 @@
 ## task: indentify census tracts with most low-income and/or non-white, 2015
 
-pacman::p_load(reshape2)
+pacman::p_load(reshape2, magrittr, ggplot2)
 
 setwd("~/Desktop/DVRPC/DVRPCExercise")
 
@@ -40,6 +40,7 @@ ptm <- proc.time() # start timer
 
 for(i in 1:length(list)){
   data <- read.csv(paste0("data/", list[i]), header = T)
+  # data <- read.csv(paste0("data/", list[7]), header = T) 
   trim <- data[, colnames(data) %in% variables]
   file <- cbind(data[, 2:3], trim)
   
@@ -68,7 +69,7 @@ for(i in 1:length(list)){
   # parse tract
   location <- colsplit(process$tract, ",", c("tract", "county", "state"))
   
-  process <- cbind(process[1],
+  process <- cbind(process[1:2],
                          location,
                          process[3:length(process)])
   
@@ -77,6 +78,8 @@ for(i in 1:length(list)){
   
   for (j in 1:length(states)){
     subset <- process[process$state == states[j], ]
+    # subset <- process[process$state == states[13], ]
+    
     subset$nonwhite.rank <- NA
     subset$nonwhite.rank[order(-subset$nonwhite.est)] <- 1:nrow(subset)
     
@@ -184,6 +187,63 @@ pa.commute <- commute[commute$GEO.id2 %in% pa$geo.id, ]
 # need to rename these columns later
 save(pa.commute, file = "commuting/pa.commute")
 
+load(file = "commuting/pa.commute")
+
+
+
+# rename columns
+columns <- colnames(pa.commute)
+
+columns %<>%
+  gsub("HC01_", "total", .) %>%
+  gsub("HC02_", "male", .) %>%
+  gsub("HC03_", "female", .) %>%
+  gsub("EST_", "", .) %>% 
+  gsub("VC01", ".workers", .) %>% 
+  gsub("VC03", ".privatevehicle", .) %>% 
+  gsub("VC10", ".publictrans", .) %>% 
+  gsub("VC11", ".walk", .) %>% 
+  gsub("VC12", ".bicycle", .) %>% 
+  gsub("VC13", ".taxiuberother", .) %>% 
+  gsub("VC55", ".meantraveltime", .)
+
+colnames(pa.commute) <- columns
+
+
+ggplot(pa.commute, aes(x = as.factor(GEO.id2), y = total.meantraveltime)) +
+  geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
+  xlab("Tract ID") +
+  ylab("Mean Travel Time (minutes)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+
+# i think i need to melt to make this useful for shiny / ggplot
+
+pa.melt <- melt(pa.commute, id.vars = columns[c(1:5, 21:23)])
+
+# string split
+split <- colsplit(as.character(pa.melt$variable), "[.]", c("group", "type"))
+
+pa.commute <- cbind(pa.melt[1:8],
+                 split,
+                 pa.melt[10])
+
+save(pa.commute, file = "dvrpcexercise/pa.commute.data")
+
+test <- pa.melt[pa.melt$GEO.id2 == "42101004102", ]
+
+ggplot(test, aes(x = factor(type, levels = unique(type)), y = value,
+                 fill = factor(group, levels = unique(group)))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = paste0(test$GEO.display.label[1],
+                      "\nTotal Workers: ", test$total.workers[1],
+                      " [Male: ", test$male.workers[1],
+                      ", Female: ", test$female.workers[1], "]",
+                      "\nMean Travel Time: ", test$total.meantraveltime,
+                      " minutes")) +
+  xlab("Commute Type") +
+  ylab("Percent Mode Share") +
+  theme(legend.title = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
 
 # markdown or shiny
 # VZ bonus material:
@@ -195,3 +255,8 @@ save(pa.commute, file = "commuting/pa.commute")
 
 
 # is there a way to look at past data and extrapolate to future?
+
+## go through processed xml, hand-create file with lat-long boundaries
+## use shiny example and leaflet thing to shade regions of map
+## perhaps combine this with commuting data barcharts and stuff
+# https://rstudio.github.io/leaflet/map_widget.html
