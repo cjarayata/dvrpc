@@ -1,16 +1,13 @@
-#
-# This is the server logic of a Shiny web application. You can run the 
-# application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-# 
-#    http://shiny.rstudio.com/
-#
+# server for DVRPC shiny app
 
 library(shiny)
 library(ggplot2)
-load("top.tracts")
-load("pa.commute.data")
+library(plotly)
+library(leaflet)
+library(rgdal)
+load("top.tracts") # churned tract data
+load("pa.commute.data") # trimmed commuter data for top PA tracts
+load("pa.topshape.data") # trimmed geospatial dataframe for top PA tracts
 
 # Define server logic
 shinyServer(function(input, output) {
@@ -81,7 +78,8 @@ shinyServer(function(input, output) {
     return(blah)
   })
   
-  output$national.plot1 <- renderPlot({
+  output$national.plot1 <- renderPlotly({
+    ggplotly(
     ggplot(national.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = nonwhite.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = nonwhite.est - nonwhite.err,
@@ -89,10 +87,12 @@ shinyServer(function(input, output) {
                         width = 0.5)) +
       xlab("Tract (Number, County, State)") +
       ylab("Non-white Estimate") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
   
-  output$national.plot2 <- renderPlot({
+  output$national.plot2 <- renderPlotly({
+    ggplotly(
     ggplot(national.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = lowincome.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = lowincome.est - lowincome.err,
@@ -100,10 +100,12 @@ shinyServer(function(input, output) {
                         width = 0.5)) +
       xlab("Tract (Number, County, State)") +
       ylab("Low-income Estimate") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
   
-  output$national.plot3 <- renderPlot({
+  output$national.plot3 <- renderPlotly({
+    ggplotly(
     ggplot(national.data(), aes(x = factor(tract.label, levels = unique(tract.label)),
                                 y = (nonwhite.est + lowincome.est))) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
@@ -112,10 +114,12 @@ shinyServer(function(input, output) {
                         width = 0.5)) +
       xlab("Tract (Number, County, State)") +
       ylab("Nonwhite + Low-income Estimate") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
   
-  output$state.plot1 <- renderPlot({
+  output$state.plot1 <- renderPlotly({
+    ggplotly(
     ggplot(state.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = nonwhite.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = nonwhite.est - nonwhite.err,
@@ -123,10 +127,12 @@ shinyServer(function(input, output) {
                         width = 0.5)) +
       xlab("Tract (Number, County, State)") +
       ylab("Non-white Estimate") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
   
-  output$state.plot2 <- renderPlot({
+  output$state.plot2 <- renderPlotly({
+    ggplotly(
     ggplot(state.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = lowincome.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = lowincome.est - lowincome.err,
@@ -134,10 +140,12 @@ shinyServer(function(input, output) {
                         width = 0.5)) +
       xlab("Tract (Number, County, State)") +
       ylab("Low-income Estimate") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
   
-  output$state.plot3 <- renderPlot({
+  output$state.plot3 <- renderPlotly({
+    ggplotly(
     ggplot(state.data(), aes(x = factor(tract.label, levels = unique(tract.label)),
                                 y = (nonwhite.est + lowincome.est))) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
@@ -146,10 +154,12 @@ shinyServer(function(input, output) {
                         width = 0.5)) +
       xlab("Tract (Number, County, State)") +
       ylab("Nonwhite + Low-income Estimate") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
   
-  output$pa.plot1 <- renderPlot({
+  output$pa.plot1 <- renderPlotly({
+    ggplotly(
     ggplot(pa.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = nonwhite.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = nonwhite.est - nonwhite.err,
@@ -157,10 +167,12 @@ shinyServer(function(input, output) {
                         width = 0.5)) +
       xlab("Tract (Number, County, State)") +
       ylab("Non-white Estimate") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
   
-  output$pa.plot2 <- renderPlot({
+  output$pa.plot2 <- renderPlotly({
+    ggplotly(
     ggplot(pa.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = lowincome.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = lowincome.est - lowincome.err,
@@ -168,10 +180,12 @@ shinyServer(function(input, output) {
                         width = 0.5)) +
       xlab("Tract (Number, County, State)") +
       ylab("Low-income Estimate") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
   
-  output$pa.plot3 <- renderPlot({
+  output$pa.plot3 <- renderPlotly({
+    ggplotly(
     ggplot(state.data(), aes(x = factor(tract.label, levels = unique(tract.label)),
                              y = (nonwhite.est + lowincome.est))) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
@@ -180,10 +194,12 @@ shinyServer(function(input, output) {
                         width = 0.5)) +
       xlab("Tract (Number, County, State)") +
       ylab("Nonwhite + Low-income Estimate") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 13))
+      theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
   
-  output$commute.plot <- renderPlot({
+  output$commute.plot <- renderPlotly({
+    ggplotly(
     ggplot(commute.data(), aes(x = factor(type, levels = unique(type)), y = value,
                      fill = factor(group, levels = unique(group)))) +
       geom_bar(stat = "identity", position = "dodge") +
@@ -197,14 +213,24 @@ shinyServer(function(input, output) {
       xlab("Commute Type") +
       ylab("Percent Mode Share") +
       theme(legend.title = element_blank(),
-            axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
+            axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+    )
   })
+  # 
+  # output$philly.tract <- renderImage({
+  #   filename <- normalizePath(file.path(paste0(getwd(),'/phila_tracts.png')), winslash = "/")
+  #   list(src = filename,
+  #        alt = "Philadelphia Tracts")
+  # }, deleteFile = FALSE)
   
-  output$philly.tract <- renderImage({
-    filename <- normalizePath(file.path(paste0(getwd(),'/phila_tracts.png')), winslash = "/")
-    list(src = filename,
-         alt = "Philadelphia Tracts")
-  }, deleteFile = FALSE)
+  output$philly.map <- renderLeaflet({
+    leaflet() %>%
+      setView(lat = 39.9526, lng = -75.1652, zoom = 11) %>% 
+      addTiles() %>%  # Add default OpenStreetMap map tiles
+      addPolygons(data = top.pa.shape,
+                  highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+                  label = paste0("Tract #", top.pa.shape@data$NAME))
+  })
   
 
   

@@ -1,6 +1,7 @@
 ## task: indentify census tracts with most low-income and/or non-white, 2015
 
-pacman::p_load(reshape2, magrittr, ggplot2)
+# load
+pacman::p_load(reshape2, magrittr, ggplot2, plotly)
 
 setwd("~/Desktop/DVRPC/DVRPCExercise")
 
@@ -11,14 +12,14 @@ setwd("~/Desktop/DVRPC/DVRPCExercise")
 # data2 <- read.csv("data/alaska.csv", header = T)
 
 
-# list files
+# list files in data directory
 list <- list.files(path = "data")
 
 # variables to keep
 # poverty level cols, race cols
 ## format is HC01_EST / HC01_MOE [header column 01, estimate / margin of error]
 ## then _VC[number]
-## 18 is white, 19 through 25 is what you want to add
+## 18 is white, 19 through 25 is what you want to add up
 ## 56 is poverty level 200% and below
 
 cols <- c("HC01_EST", "HC01_MOE")
@@ -40,7 +41,6 @@ ptm <- proc.time() # start timer
 
 for(i in 1:length(list)){
   data <- read.csv(paste0("data/", list[i]), header = T)
-  # data <- read.csv(paste0("data/", list[7]), header = T) 
   trim <- data[, colnames(data) %in% variables]
   file <- cbind(data[, 2:3], trim)
   
@@ -69,7 +69,7 @@ for(i in 1:length(list)){
   # parse tract
   location <- colsplit(process$tract, ",", c("tract", "county", "state"))
   
-  process <- cbind(process[1:2],
+  process <- cbind(process[1],
                          location,
                          process[3:length(process)])
   
@@ -78,33 +78,35 @@ for(i in 1:length(list)){
   
   for (j in 1:length(states)){
     subset <- process[process$state == states[j], ]
-    # subset <- process[process$state == states[13], ]
-    
+
     subset$nonwhite.rank <- NA
     subset$nonwhite.rank[order(-subset$nonwhite.est)] <- 1:nrow(subset)
     
     subset$poverty.rank <- NA
     subset$poverty.rank[order(-subset$lowincome.est)] <- 1:nrow(subset)
     
+    # combo rank will give us a *rough* idea of top nonwhite AND lowincome tracts
     subset$combo.rank <- subset$nonwhite.rank + subset$poverty.rank
     
-    temp <- subset[subset$nonwhite.rank <= 10 | # top 10
-                     subset$poverty.rank <= 10 | # top 10
-                     subset$combo.rank <= 30, ] # any tracts with combo rank of 50 or less
+    # for each state, cut down to top 10 NW, top 10 low-income, and any tracts w/ combo rank 30 or less
+    temp <- subset[subset$nonwhite.rank <= 10 |
+                     subset$poverty.rank <= 10 |
+                     subset$combo.rank <= 30, ]
     rownames(temp) <- NULL
     top.tracts <- rbind(top.tracts, temp)
   }
 }
 
-as.numeric((proc.time() - ptm)[3]) # approx 13 seconds
+as.numeric((proc.time() - ptm)[3]) # approx 15 seconds
 
+# clean a bit
 top.tracts <- top.tracts[-1, ]
 rownames(top.tracts) <- NULL
 
 # sanity check, make sure all 50 states (plus DC) represented
-length(unique(top.tracts$state))
+length(unique(top.tracts$state)) # 51
 
-# do national rankings
+# do national rankings in same way as state rankings
 
 top.tracts$nw.nat.rank[order(-top.tracts$nonwhite.est)] <- 1:nrow(top.tracts)
 top.tracts$pov.nat.rank[order(-top.tracts$lowincome.est)] <- 1:nrow(top.tracts)
@@ -113,29 +115,21 @@ top.tracts$combo.nat.rank <- top.tracts$nw.nat.rank + top.tracts$pov.nat.rank
 
 # make a descriptive name for ggplot labels
 ## format tract ##, county, state
-
 tract.clean <- gsub(pattern = "Census Tract ", "#", top.tracts$tract)
 county.clean <- gsub(pattern = " County", "", top.tracts$county)
 tract.label <- paste0(tract.clean, ",", county.clean, ",", top.tracts$state)
 
-top.tracts <- cbind
+top.tracts <- cbind(tract.label, top.tracts)
 
+# done!
 save(top.tracts, file = "top.tracts")
+
+
 
 load("top.tracts")
 
 
-
-# markdown for processing pipeline; be descriptive
-
-
-
-# SHINY
-## have a viewer that will show ten:
-## nationwide [default view]
-## by state (drop down to pick a state)
-
-
+# plot testing
 library(ggplot2)
 
 nw.one <- top.tracts[top.tracts$nonwhite.rank == 1, ]
@@ -154,7 +148,6 @@ ggplot(nw.one, aes(x = state, y = nonwhite.est)) +
 
 # PA commuting stuff!
 ## table S0801 - commuting characteristics by sex - just for PA by tracts
-
 
 pa.commuting <- read.csv("commuting/pa_commuting.csv", header = T)
 
@@ -184,13 +177,6 @@ pa <- top.tracts[top.tracts$state == " Pennsylvania", ]
 
 pa.commute <- commute[commute$GEO.id2 %in% pa$geo.id, ]
 
-# need to rename these columns later
-save(pa.commute, file = "commuting/pa.commute")
-
-load(file = "commuting/pa.commute")
-
-
-
 # rename columns
 columns <- colnames(pa.commute)
 
@@ -209,7 +195,7 @@ columns %<>%
 
 colnames(pa.commute) <- columns
 
-
+# plot testing
 ggplot(pa.commute, aes(x = as.factor(GEO.id2), y = total.meantraveltime)) +
   geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
   xlab("Tract ID") +
@@ -217,6 +203,10 @@ ggplot(pa.commute, aes(x = as.factor(GEO.id2), y = total.meantraveltime)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
 
 # i think i need to melt to make this useful for shiny / ggplot
+
+# save the casted version first
+save(pa.commute, file = "commuting/pa.commute")
+load(file = "commuting/pa.commute")
 
 pa.melt <- melt(pa.commute, id.vars = columns[c(1:5, 21:23)])
 
@@ -227,8 +217,16 @@ pa.commute <- cbind(pa.melt[1:8],
                  split,
                  pa.melt[10])
 
+
+# keep in mind this is melted!
 save(pa.commute, file = "dvrpcexercise/pa.commute.data")
 
+
+
+load("dvrpcexercise/pa.commute.data")
+
+
+# test plotting
 test <- pa.melt[pa.melt$GEO.id2 == "42101004102", ]
 
 ggplot(test, aes(x = factor(type, levels = unique(type)), y = value,
@@ -245,18 +243,29 @@ ggplot(test, aes(x = factor(type, levels = unique(type)), y = value,
   theme(legend.title = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
 
-# markdown or shiny
-# VZ bonus material:
-## convert the census tract information to lat/long boundaries (i might need to take the first geo.id instead)
-## leaflet package
-## mr data to convert to json object
-## use json object to query out available API info from certain URLs
-## number of injuries that occur in each tract? (but i'd need to download a ton more data for this)
 
+# mapping stuff
+pacman::p_load(maptools, sf, rgdal, leaflet)
 
-# is there a way to look at past data and extrapolate to future?
+pa <- readOGR("dvrpcexercise/cb_2015_42_tract_500k/cb_2015_42_tract_500k.shp")
 
-## go through processed xml, hand-create file with lat-long boundaries
-## use shiny example and leaflet thing to shade regions of map
-## perhaps combine this with commuting data barcharts and stuff
-# https://rstudio.github.io/leaflet/map_widget.html
+head(pa@data)
+
+load("dvrpcexercise/pa.commute.data")
+
+pa.tract.ids <- pa.commute$GEO.id2[!duplicated(pa.commute$GEO.id2)]
+
+top.pa.shape <- pa[pa@data$GEOID %in% pa.tract.ids, ] # now i have a shape file for pa tracts i want
+
+save(top.pa.shape, file = "dvrpcexercise/pa.topshape.data")
+
+load("dvrpcexercise/pa.topshape.data")
+
+map <- leaflet() %>%
+  setView(lat = 39.9526, lng = -75.1652, zoom = 11) %>% 
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addPolygons(data = top.pa.shape,
+              highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+              label = paste0("Tract #", top.pa.shape@data$NAME))
+
+map

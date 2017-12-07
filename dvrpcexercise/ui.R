@@ -1,13 +1,10 @@
-#
-# This is the user-interface definition of a Shiny web application. You can
-# run the application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-# 
-#    http://shiny.rstudio.com/
-#
+# UI for DVRPC shiny app
+
+
 
 library(shiny)
+library(plotly)
+library(leaflet)
 load("top.tracts")
 load("pa.commute.data")
 
@@ -53,20 +50,20 @@ shinyUI(fluidPage(
       conditionalPanel(condition = "input.Level == 'nat' &&
                          input.Rank == 'nonwhite'",
                        p("Bar Plot: Estimate +/- Error"),
-                       plotOutput("national.plot1"),
+                       plotlyOutput("national.plot1"),
                        dataTableOutput("national.data.out")),
       
       conditionalPanel(condition = "input.Level == 'nat' &&
                          input.Rank == 'lowincome'",
                        p("Bar Plot: Estimate +/- Error"),
-                       plotOutput("national.plot2"),
+                       plotlyOutput("national.plot2"),
                        dataTableOutput("national.data.out2")),
       
       conditionalPanel(condition = "input.Level == 'nat' &&
                        input.Rank == 'combo'",
                        p("Bar Plot: Estimate +/- Error"),
                        # add a warning about the summing might be incorrect?
-                       plotOutput("national.plot3"),
+                       plotlyOutput("national.plot3"),
                        dataTableOutput("national.data.out3")),
       
       # state rankings
@@ -74,14 +71,14 @@ shinyUI(fluidPage(
                                     input.State != ' Pennsylvania' &&
                                     input.Rank == 'nonwhite'",
                        p("Bar Plot: Estimate +/- Error"),
-                       plotOutput("state.plot1"),
+                       plotlyOutput("state.plot1"),
                        dataTableOutput("state.data.out")),
       
       conditionalPanel(condition = "input.Level == 'sta' &&
                                     input.State != ' Pennsylvania' &&
                          input.Rank == 'lowincome'",
                        p("Bar Plot: Estimate +/- Error"),
-                       plotOutput("state.plot2"),
+                       plotlyOutput("state.plot2"),
                        dataTableOutput("state.data.out2")),
       
       conditionalPanel(condition = "input.Level == 'sta' &&
@@ -89,7 +86,7 @@ shinyUI(fluidPage(
                        input.Rank == 'combo'",
                        p("Bar Plot: Estimate +/- Error"),
                        # add a warning about the summing might be incorrect?
-                       plotOutput("state.plot3"),
+                       plotlyOutput("state.plot3"),
                        dataTableOutput("state.data.out3")),
       
       
@@ -98,14 +95,14 @@ shinyUI(fluidPage(
                                     input.State == ' Pennsylvania' &&
                          input.Rankk == 'nonwhite'",
                        p("Bar Plot: Estimate +/- Error"),
-                       plotOutput("pa.plot1"),
+                       plotlyOutput("pa.plot1"),
                        dataTableOutput("pa.data.out")),
       
       conditionalPanel(condition = "input.Level == 'sta' &&
                                     input.State == ' Pennsylvania' &&
                          input.Rankk == 'lowincome'",
                        p("Bar Plot: Estimate +/- Error"),
-                       plotOutput("pa.plot2"),
+                       plotlyOutput("pa.plot2"),
                        dataTableOutput("pa.data.out2")),
       
       conditionalPanel(condition = "input.Level == 'sta' &&
@@ -113,16 +110,17 @@ shinyUI(fluidPage(
                        input.Rankk == 'combo'",
                        p("Bar Plot: Estimate +/- Error"),
                        # add a warning about the summing might be incorrect?
-                       plotOutput("pa.plot3"),
+                       plotlyOutput("pa.plot3"),
                        dataTableOutput("pa.data.out3")),
       conditionalPanel(condition = "input.Level == 'sta' &&
                                     input.State == ' Pennsylvania' &&
                        input.Rankk == 'commute'",
-                       plotOutput("commute.plot")),
-      # PA output
+                       plotlyOutput("commute.plot")),
+      # PA map output
       conditionalPanel(condition = "input.Level == 'sta' &&
                        input.State == ' Pennsylvania'",
-                       imageOutput("philly.tract"))
+                       # imageOutput("philly.tract"), # don't need the picture anymore!
+                       leafletOutput("philly.map"))
 
     )
   )
