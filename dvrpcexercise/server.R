@@ -6,7 +6,7 @@ library(plotly)
 library(leaflet)
 library(rgdal)
 load("top.tracts") # churned tract data
-load("pa.commute.data") # trimmed commuter data for top PA tracts
+load("pa.commute.data") # trimmed commuter data (cast and melted) for top PA tracts
 load("pa.topshape.data") # trimmed geospatial dataframe for top PA tracts
 
 # Define server logic
@@ -14,19 +14,19 @@ shinyServer(function(input, output) {
   
   national.data <- reactive({
     top.tracts <- top.tracts[, c(1, 3:5, 8:11, 15:17)]
-    if(input$Rank == 'nonwhite'){
+    if(input$nRank == 'nonwhite'){
       blah <- top.tracts[top.tracts$nw.nat.rank <= input$N, ]
       blah <- blah[order(blah$nw.nat.rank), ]
       return(blah)
     }
-    if(input$Rank == 'lowincome'){
+    if(input$nRank == 'lowincome'){
       blah <- top.tracts[top.tracts$pov.nat.rank <= input$N, ]
       blah <- blah[order(blah$pov.nat.rank), ]
       return(blah)
     }
     
     # might have to redo combo rankings.... is rank-summing the legit move here?
-    if(input$Rank == 'combo'){
+    if(input$nRank == 'combo'){
       blah <- top.tracts[order(top.tracts$combo.nat.rank), ]
       blah <- blah[1:input$N, ]
       return(blah)
@@ -36,17 +36,17 @@ shinyServer(function(input, output) {
   state.data <- reactive({
     top.tracts <- top.tracts[, c(1, 3:5, 8:14)]
       blah <- top.tracts[top.tracts$state == input$State, ]
-      if(input$Rank == 'nonwhite'){
+      if(input$sRank == 'nonwhite'){
         blah <- blah[blah$nonwhite.rank <= 10, ]
         blah <- blah[order(blah$nonwhite.rank), ]
         return(blah)
       }
-      if(input$Rank == 'lowincome'){
+      if(input$sRank == 'lowincome'){
         blah <- blah[blah$poverty.rank <= 10, ]
         blah <- blah[order(blah$poverty.rank), ]
         return(blah)
       }
-      if(input$Rank == 'combo'){
+      if(input$sRank == 'combo'){
         blah <- blah[order(blah$combo.rank), ]
         blah <- blah[1:10, ]
         return(blah)
@@ -56,17 +56,17 @@ shinyServer(function(input, output) {
   pa.data <- reactive({
     top.tracts <- top.tracts[, c(1, 3:5, 8:14)]
     blah <- top.tracts[top.tracts$state == input$State, ]
-    if(input$Rankk == 'nonwhite'){
+    if(input$pRank == 'nonwhite'){
       blah <- blah[blah$nonwhite.rank <= 10, ]
       blah <- blah[order(blah$nonwhite.rank), ]
       return(blah)
     }
-    if(input$Rankk == 'lowincome'){
+    if(input$pRank == 'lowincome'){
       blah <- blah[blah$poverty.rank <= 10, ]
       blah <- blah[order(blah$poverty.rank), ]
       return(blah)
     }
-    if(input$Rankk == 'combo'){
+    if(input$pRank == 'combo'){
       blah <- blah[order(blah$combo.rank), ]
       blah <- blah[1:10, ]
       return(blah)
@@ -74,132 +74,168 @@ shinyServer(function(input, output) {
   })
   
   commute.data <- reactive({
-    blah <- pa.commute[pa.commute$GEO.display.label == input$Tract, ]
+    blah <- pa.commute.melt[pa.commute.melt$GEO.display.label == input$Tract, ]
     return(blah)
   })
   
   output$national.plot1 <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(national.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = nonwhite.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = nonwhite.est - nonwhite.err,
                         ymax = nonwhite.est + nonwhite.err,
                         width = 0.5)) +
-      xlab("Tract (Number, County, State)") +
-      ylab("Non-white Estimate") +
+      labs(title = "Tracts with highest non-white population\n
+           Bars represent -/+ error",
+           x = "Tract (Number, County, State)",
+           y = "Non-white Estimate") +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   
   output$national.plot2 <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(national.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = lowincome.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = lowincome.est - lowincome.err,
                         ymax = lowincome.est + lowincome.err,
                         width = 0.5)) +
-      xlab("Tract (Number, County, State)") +
-      ylab("Low-income Estimate") +
+      labs(title = "Tracts with highest low-income population\n
+           Bars represent -/+ error",
+           x = "Tract (Number, County, State)",
+           y = "Low-income Estimate") +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   
   output$national.plot3 <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(national.data(), aes(x = factor(tract.label, levels = unique(tract.label)),
                                 y = (nonwhite.est + lowincome.est))) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = (nonwhite.est + lowincome.est) - (nonwhite.err + lowincome.err),
                         ymax = (nonwhite.est + lowincome.est) + (nonwhite.err + lowincome.err),
                         width = 0.5)) +
-      xlab("Tract (Number, County, State)") +
-      ylab("Nonwhite + Low-income Estimate") +
+      labs(title = "Tracts with highest non-white and low-income population\n
+           Bars represent -/+ error",
+           x = "Tract (Number, County, State)",
+           y = "Nonwhite + Low-income Estimate") +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   
   output$state.plot1 <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(state.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = nonwhite.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = nonwhite.est - nonwhite.err,
                         ymax = nonwhite.est + nonwhite.err,
                         width = 0.5)) +
-      xlab("Tract (Number, County, State)") +
-      ylab("Non-white Estimate") +
+      labs(title = "Tracts with highest non-white population\n
+           Bars represent -/+ error",
+           x = "Tract (Number, County, State)",
+           y = "Non-white Estimate") +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   
   output$state.plot2 <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(state.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = lowincome.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = lowincome.est - lowincome.err,
                         ymax = lowincome.est + lowincome.err,
                         width = 0.5)) +
-      xlab("Tract (Number, County, State)") +
-      ylab("Low-income Estimate") +
+      labs(title = "Tracts with highest low-income population\n
+           Bars represent -/+ error",
+           x = "Tract (Number, County, State)",
+           y = "Low-income Estimate") +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   
   output$state.plot3 <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(state.data(), aes(x = factor(tract.label, levels = unique(tract.label)),
                                 y = (nonwhite.est + lowincome.est))) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = (nonwhite.est + lowincome.est) - (nonwhite.err + lowincome.err),
                         ymax = (nonwhite.est + lowincome.est) + (nonwhite.err + lowincome.err),
                         width = 0.5)) +
-      xlab("Tract (Number, County, State)") +
-      ylab("Nonwhite + Low-income Estimate") +
+      labs(title = "Tracts with highest non-white and low-income population\n
+           Bars represent -/+ error",
+           x = "Tract (Number, County, State)",
+           y = "Nonwhite + Low-income Estimate") +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   
   output$pa.plot1 <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(pa.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = nonwhite.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = nonwhite.est - nonwhite.err,
                         ymax = nonwhite.est + nonwhite.err,
                         width = 0.5)) +
-      xlab("Tract (Number, County, State)") +
-      ylab("Non-white Estimate") +
+      labs(title = "Tracts with highest non-white population\n
+           Bars represent -/+ error",
+           x = "Tract (Number, County, State)",
+           y = "Non-white Estimate") +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   
   output$pa.plot2 <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(pa.data(), aes(x = factor(tract.label, levels = unique(tract.label)), y = lowincome.est)) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = lowincome.est - lowincome.err,
                         ymax = lowincome.est + lowincome.err,
                         width = 0.5)) +
-      xlab("Tract (Number, County, State)") +
-      ylab("Low-income Estimate") +
+      labs(title = "Tracts with highest low-income population\n
+           Bars represent -/+ error",
+           x = "Tract (Number, County, State)",
+           y = "Low-income Estimate") +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   
   output$pa.plot3 <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(state.data(), aes(x = factor(tract.label, levels = unique(tract.label)),
                              y = (nonwhite.est + lowincome.est))) +
       geom_bar(position="dodge", stat="identity", fill = "#FF6666") +
       geom_errorbar(aes(ymin = (nonwhite.est + lowincome.est) - (nonwhite.err + lowincome.err),
                         ymax = (nonwhite.est + lowincome.est) + (nonwhite.err + lowincome.err),
                         width = 0.5)) +
-      xlab("Tract (Number, County, State)") +
-      ylab("Nonwhite + Low-income Estimate") +
+      labs(title = "Tracts with highest non-white and low-income population\n
+           Bars represent -/+ error",
+           x = "Tract (Number, County, State)",
+           y = "Nonwhite + Low-income Estimate") +
       theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   
   output$commute.plot <- renderPlotly({
-    ggplotly(
+    p <- ggplotly(
     ggplot(commute.data(), aes(x = factor(type, levels = unique(type)), y = value,
                      fill = factor(group, levels = unique(group)))) +
       geom_bar(stat = "identity", position = "dodge") +
@@ -215,6 +251,8 @@ shinyServer(function(input, output) {
       theme(legend.title = element_blank(),
             axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
     )
+    p$elementId <- NULL
+    p
   })
   # 
   # output$philly.tract <- renderImage({
@@ -247,6 +285,7 @@ shinyServer(function(input, output) {
   output$pa.data.out <- renderDataTable(pa.data()[, c(2:10)])
   output$pa.data.out2 <- renderDataTable(pa.data()[, c(2:10)])
   output$pa.data.out3 <- renderDataTable(pa.data()[, c(2:11)])
+  output$pa.commute.data <- renderDataTable(pa.commute)
   
 
 

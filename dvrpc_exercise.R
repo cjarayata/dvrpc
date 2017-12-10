@@ -213,13 +213,13 @@ pa.melt <- melt(pa.commute, id.vars = columns[c(1:5, 21:23)])
 # string split
 split <- colsplit(as.character(pa.melt$variable), "[.]", c("group", "type"))
 
-pa.commute <- cbind(pa.melt[1:8],
+pa.commute.melt <- cbind(pa.melt[1:8],
                  split,
                  pa.melt[10])
 
 
 # keep in mind this is melted!
-save(pa.commute, file = "dvrpcexercise/pa.commute.data")
+save(pa.commute, pa.commute.melt, file = "dvrpcexercise/pa.commute.data")
 
 
 
