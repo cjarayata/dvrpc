@@ -1,6 +1,9 @@
-## task: indentify census tracts with most low-income and/or non-white, 2015
+####################
+# initial task:
+# identify census tracts with most low-income and/or non-white, 2015
+####################
 
-# load
+# load packages
 pacman::p_load(reshape2, magrittr, ggplot2, plotly)
 
 setwd("~/Desktop/DVRPC/DVRPCExercise")
@@ -124,12 +127,11 @@ top.tracts <- cbind(tract.label, top.tracts)
 # done!
 save(top.tracts, file = "top.tracts")
 
-
+########
+# plot testing
+########
 
 load("top.tracts")
-
-
-# plot testing
 library(ggplot2)
 
 nw.one <- top.tracts[top.tracts$nonwhite.rank == 1, ]
@@ -144,10 +146,10 @@ ggplot(nw.one, aes(x = state, y = nonwhite.est)) +
   # scale_y_continuous(expand = c(0, 0, 1000, 0))
 
 
-
-
+#################
 # PA commuting stuff!
 ## table S0801 - commuting characteristics by sex - just for PA by tracts
+#################
 
 pa.commuting <- read.csv("commuting/pa_commuting.csv", header = T)
 
@@ -218,15 +220,16 @@ pa.commute.melt <- cbind(pa.melt[1:8],
                  pa.melt[10])
 
 
-# keep in mind this is melted!
+# both casted and melted versions; done!
 save(pa.commute, pa.commute.melt, file = "dvrpcexercise/pa.commute.data")
 
 
+########
+# plot testing
+########
 
 load("dvrpcexercise/pa.commute.data")
 
-
-# test plotting
 test <- pa.melt[pa.melt$GEO.id2 == "42101004102", ]
 
 ggplot(test, aes(x = factor(type, levels = unique(type)), y = value,
@@ -243,10 +246,13 @@ ggplot(test, aes(x = factor(type, levels = unique(type)), y = value,
   theme(legend.title = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 10))
 
-
+########
 # mapping stuff
+########
+
 pacman::p_load(maptools, sf, rgdal, leaflet)
 
+# read in shape file from census website
 pa <- readOGR("dvrpcexercise/cb_2015_42_tract_500k/cb_2015_42_tract_500k.shp")
 
 head(pa@data)
@@ -255,17 +261,17 @@ load("dvrpcexercise/pa.commute.data")
 
 pa.tract.ids <- pa.commute$GEO.id2[!duplicated(pa.commute$GEO.id2)]
 
-top.pa.shape <- pa[pa@data$GEOID %in% pa.tract.ids, ] # now i have a shape file for pa tracts i want
+top.pa.shape <- pa[pa@data$GEOID %in% pa.tract.ids, ] # now i have a shape file for 19 pa tracts i want
 
 save(top.pa.shape, file = "dvrpcexercise/pa.topshape.data")
 
 load("dvrpcexercise/pa.topshape.data")
 
 map <- leaflet() %>%
-  setView(lat = 39.9526, lng = -75.1652, zoom = 11) %>% 
+  setView(lat = 39.9526, lng = -75.1652, zoom = 11) %>% # center on philadelphia
   addTiles() %>%  # Add default OpenStreetMap map tiles
   addPolygons(data = top.pa.shape,
               highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
-              label = paste0("Tract #", top.pa.shape@data$NAME))
+              label = paste0("Tract #", top.pa.shape@data$NAME)) # display label on hover
 
 map

@@ -1,0 +1,91 @@
+---
+title: "DVRPC Data Scientist Exercise"
+author: "CJ Arayata"
+date: "December 4, 2017"
+output:
+  word_document: default
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Initial Task: ACS Census Tract Identification using Table S1701
+###### Preprocessing code at: <https://github.com/cjarayata/dvrpc/blob/master/dvrpc_exercise.R>
+
+Data were downloaded from <https://factfinder.census.gov/> using ACS 2015 5-year estimates, geography: Census Tract, for each state.
+
+I initially downloaded data for Alabama and Alaska individually to get a feel for the dataset, and to figure out my processing pipeline. I also looked at ACS table B02001 [Race], but realized that the race data for each tract was duplicated and available in S1701.
+
+With Alabama's dataset coming in at 1,181 rows and 369 columns, it quickly became clear that the first priority would be trimming down to relevant columns before moving onto further processing steps.
+
+Once the processing script was in place, I started downloading data for ~15 states at a time. Minimal tweaks were needed to accommodate files with more than one state present.
+
+The resulting dataset contained the tracts with the highest concentrations of low-income and/or non-white at both the national and state level.
+
+![The 10 highest non-white population tracts in the US.](dvrpcexercise/nwnat.png)
+
+![The 10 highest low-income population tracts in the US.](dvrpcexercise/lowinc.png)
+
+## Shiny Application
+###### Link at <https://carayata.shinyapps.io/dvrpcexercise/>
+
+In lieu of including a multitude of tables, graphs and plots here, I built a Shiny application with the data so that barcharts and tables could be produced on-demand.
+
+A few notes:
+
++ The "combo rank" I created is simply a sum of the rank of a tract, e.g. if it is the #1 low-income tract and #1 non-white tract, the combo rank would be 2. However, the graphs add the low-income + non-white estimates, and therefore do not take into account overlap between the two groups. The notion of a combo rank is more so to give a rough idea of the non-white AND low-income tracts vs. the OR tracts.
+
++ The plots will show labels and values on hover. The labels leave a bit to be desired but neat nonetheless!
+
++ All tables are sortable and searchable.
+
++ Whenever you select new inputs, the "Run Selection" button must be clicked.
+
++ The PA-specific features are somewhat bare-bones and not as fully integrated as I would have liked. Nonetheless, I hope you find them informative and interesting. More on this later.
+
+
+
+Code:
+
+<https://github.com/cjarayata/dvrpc/blob/master/dvrpcexercise/server.R>
+<https://github.com/cjarayata/dvrpc/blob/master/dvrpcexercise/ui.R>
+
+## Pennsylvania-Specific Analyses
+#### Commuter Data: Table S0801 - Commuting Characteristics by Sex
+###### Preprocessing code included in "dvrpc_exercise.R"
+
+I wanted to go a bit further, so I downloaded and processed commuter data for the 19 top low-income and/or non-white tracts for Pennsylvania. Questions to be asked here could be "Which tracts have the most pedestrian commuters?", "Which tracts have the most bicycle commuters?", or maybe "Which tracts have the most private-vehicle use?"
+
+To get a better idea of the bigger picture, I also wanted to download crash data from PennDOT, to perhaps examine if the mode share splits were predictive/indicative of the number of injuries and deaths in each tract (i.e. can higher private-car use explain more crashes?), but alas, not enough time. Lots to explore here.
+
+Exploring PA commuter data for the top low-income and non-white tracts is incorporated into the Shiny App, and accessible when "Pennsylvania" is the selected state input.
+
+![Mode share distribution for Philadelphia Tract 41.02. Among the 19 PA tracts identified for high non-white/low-income concentrations, this tract contains the most bicycle commuters (and is also closest to Center City.)](dvrpcexercise/philly_4102_plot.png)
+
+
+#### Philadelphia Tract Map
+
+I wanted to figure out how to visualize the Pennsylvania tracts of interest. At first, I made a (pretty bad) bitmap image by downloading Pennsylvania tract .kml files from the Census website, opening it in Google Earth, manually checking off the 19 tracts that I had identified, saving the current view as a bitmap, and then figuring out how to display the image in the Shiny app.
+
+![Crap Map](dvrpcexercise/phila_tracts.png)
+
+#### Tract Map Try 2: Leaflet
+
+Then I read a dizzying amount about Leaflet, and tried to figure out how to incorporate it into my Shiny App. Below is a screenshot of an interactive map that is currently highlighting the top non-white tract in Pennsylvania, #114.
+
+![Screenshot of interactive Leaflet map embedded in Shiny app.](dvrpcexercise/philly_114_tract.png)
+
+The above map will display in the Shiny whenever Pennsylvania is the selected state input.
+
+In an ideal universe, the geospatial dataframe would be merged with the demographic / commuter / crash data such that the polygons can be density-shaded or interactive in such a way that hover or click-events can directly generate the appropriate mode-share barplot.
+
+## Github
+
+Various links were included above, but the master folder with all scripts can be found here:
+
+<https://github.com/cjarayata/dvrpc>
+
+## Wrap
+
+Thanks for your time. I hope you've enjoyed exploring the Shiny and I look forward to meeting you in person on Tuesday, December 12th!

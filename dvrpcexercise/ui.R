@@ -36,7 +36,8 @@ shinyUI(fluidPage(
                                     list("Non-white" = "nonwhite",
                                          "Low-income" = "lowincome",
                                          "Both" = "combo"))),
-       conditionalPanel(condition = "input.State == ' Pennsylvania'",
+       conditionalPanel(condition = "input.Level == 'sta' &&
+                        input.State == ' Pennsylvania'",
                         selectInput("pRank", "Non-white, Low-income, both, or commuter data?",
                                     list("Non-white" = "nonwhite",
                                          "Low-income" = "lowincome",
@@ -46,7 +47,9 @@ shinyUI(fluidPage(
        #                  div("Caution: Combo rankings were created by summing low-income and non-white rankings.
        #                      Does not account for overlap between groups!", style = "color:red"),
        #                  br()),
-       conditionalPanel(condition = "input.pRank == 'commute'",
+       conditionalPanel(condition = "input.Level == 'sta' &&
+                        input.State == ' Pennsylvania' &&
+                        input.pRank == 'commute'",
                         selectInput("Tract", "Tract:",
                                     choices = levels(factor(pa.commute$GEO.display.label)))),
        submitButton("Run Selection")
