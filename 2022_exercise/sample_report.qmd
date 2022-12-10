@@ -1,0 +1,110 @@
+---
+title: "Monthly Municipal Crash Report"
+author: "CJ Arayata"
+format: docx
+editor: visual
+date: "`r format(lubridate::today(), '%B %d, %Y')`"
+---
+
+
+## Purpose
+
+This yearly report, provided to the Office of Safe Streets (OSS), will provide summary statistics relating to municipal-level crash data for the region.
+
+## Limitations
+
+Many shortcuts were taken! For example, crash data per capita was computed using 2015 'forecasts' as opposed to actual population data for the given crash year. The purpose of this exercise was to demonstrate a prototype deliverable and illustrate future opportunities for improvement, etc. without strict regard for data accuracy or any sort of in-depth analysis. Because data was retrieved from DVRPC's data catalog, it is assumed that most, if not all of the data, has already been thoroughly screened and vetted before being publicly released.
+
+```{r}
+#| label: load-packages
+#| include: false
+
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(ckanr)
+library(here)
+library(arrow)
+library(gt)
+library(glue)
+library(ggplot2)
+```
+
+```{r}
+#| label: load-data
+#| include: false
+
+# define/set up CKAN connection
+ckan_con <- src_ckan("https://catalog.dvrpc.org/")
+ckanr_setup("https://catalog.dvrpc.org/")
+
+# read in crash data and metadata
+crash_resource <- "ce75c010-3a79-4a67-b7b6-0e16fb83edaf"
+crash_meta <- resource_show(id = crash_resource, as = "table") # meta data
+crash_last_mod <- ymd_hms(crash_meta$last_modified)
+
+crash_data <- tbl(src = ckan_con$con, from = crash_resource) %>% 
+  as_tibble() %>% 
+  select(-c('_full_text', '_id')) %>% 
+  rename("Municipality" = "MCD Name") %>% 
+  mutate(County = str_remove_all(County, " County"))
+
+# read in pop data and metadata
+pop_resource <- "edbf137e-acc1-4543-8f71-c7ecbae67951"
+pop_meta <- resource_show(id = pop_resource, as = "table")
+pop_last_mod <- ymd_hms(pop_meta$last_modified)
+
+pop_data <- tbl(src = ckan_con$con, from = pop_resource) %>% 
+  as_tibble() %>% 
+  select(-c('_full_text', '_id')) %>% 
+  rename("Municipality" = "Municipality or District",
+         "GEOID10" = "mcd/cpa id") %>% 
+  mutate(GEOID10 = as.character(GEOID10))
+
+# join datasets
+# fix names further to jive with each other...
+# or downselect / rename to exactly what you need
+# then, divide all crash cols by 2015 population
+per_capita_data <- crash_data %>% 
+  left_join(pop_data %>% 
+              select('county id':'2015', 'GEOID10')) %>% 
+  mutate_at(vars(`TOTAL CRASH`:`BICYCLISTS KILLED`), ~(. / `2015`))
+
+summary_per_capita_data <- per_capita_data %>% 
+  group_by(County, `Crash Year`) %>% 
+  summarise(mean_crash = mean(`TOTAL CRASH`, na.rm = T),
+            mean_total_killed = mean(`TOTAL KILLED`, na.rm = T),
+            .groups = "drop")
+
+
+```
+
+### Here is a table
+
+```{r}
+#| label: gt table
+#| include: false
+
+summary_per_capita_data %>% 
+  filter(`Crash Year` == max(summary_per_capita_data$`Crash Year`)) %>% 
+  # could add a select here to only show the 'main variable' you want
+  arrange(desc(mean_crash)) %>% 
+  gt()
+```
+
+### Here is a plot
+
+```{r}
+#| label: plot
+#| include: false
+
+# fix year
+# classic theme
+# direct labels
+# labeling
+summary_per_capita_data %>% 
+  ggplot(aes(x = `Crash Year`, y = mean_crash, color = County)) +
+  geom_line(linewidth = 1.5)
+
+```
+
