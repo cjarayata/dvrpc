@@ -1,19 +1,13 @@
 ---
-title: "Monthly Municipal Crash Report"
+title: "Yearly Municipal Crash Report"
 author: "CJ Arayata"
-format: docx
+format: 
+  docx:
+    fig-width: 8
+    fig-height: 8
 editor: visual
 date: "`r format(lubridate::today(), '%B %d, %Y')`"
 ---
-
-
-## Purpose
-
-This yearly report, provided to the Office of Safe Streets (OSS), will provide summary statistics relating to municipal-level crash data for the region.
-
-## Limitations
-
-Many shortcuts were taken! For example, crash data per capita was computed using 2015 'forecasts' as opposed to actual population data for the given crash year. The purpose of this exercise was to demonstrate a prototype deliverable and illustrate future opportunities for improvement, etc. without strict regard for data accuracy or any sort of in-depth analysis. Because data was retrieved from DVRPC's data catalog, it is assumed that most, if not all of the data, has already been thoroughly screened and vetted before being publicly released.
 
 ```{r}
 #| label: load-packages
@@ -28,6 +22,8 @@ library(arrow)
 library(gt)
 library(glue)
 library(ggplot2)
+
+source("report_functions.R")
 ```
 
 ```{r}
@@ -47,7 +43,10 @@ crash_data <- tbl(src = ckan_con$con, from = crash_resource) %>%
   as_tibble() %>% 
   select(-c('_full_text', '_id')) %>% 
   rename("Municipality" = "MCD Name") %>% 
-  mutate(County = str_remove_all(County, " County"))
+  mutate(County = str_remove_all(County, " County"),
+         `TOTAL INJURED KILLED` = `TOTAL KILLED` + `TOTAL INJURED`,
+         `TOTAL VULNERABLE CRASHES` = `PEDESTRIAN COUNT` + `BICYCLE COUNT`,
+         Municipality_County = glue("{Municipality} ({County})"))
 
 # read in pop data and metadata
 pop_resource <- "edbf137e-acc1-4543-8f71-c7ecbae67951"
@@ -61,38 +60,126 @@ pop_data <- tbl(src = ckan_con$con, from = pop_resource) %>%
          "GEOID10" = "mcd/cpa id") %>% 
   mutate(GEOID10 = as.character(GEOID10))
 
+# two municipalities seem to have very low population; filter to only places
+# with at least 100 projected residents in 2015 in both datasets
+bad_municipalities <- pop_data %>% 
+  filter(`2015` < 100) %>% 
+  pull(Municipality)
+
+crash_data <- crash_data %>% 
+  filter(!Municipality %in% bad_municipalities)
+
 # join datasets
 # fix names further to jive with each other...
 # or downselect / rename to exactly what you need
 # then, divide all crash cols by 2015 population
-per_capita_data <- crash_data %>% 
+crash_data <- crash_data %>% 
   left_join(pop_data %>% 
-              select('county id':'2015', 'GEOID10')) %>% 
-  mutate_at(vars(`TOTAL CRASH`:`BICYCLISTS KILLED`), ~(. / `2015`))
+              select('county id':'2015', 'GEOID10'))
+
+per_capita_data <- crash_data %>% 
+  mutate_at(vars(`TOTAL CRASH`:`TOTAL VULNERABLE CRASHES`), ~(. / `2015`))
 
 summary_per_capita_data <- per_capita_data %>% 
   group_by(County, `Crash Year`) %>% 
-  summarise(mean_crash = mean(`TOTAL CRASH`, na.rm = T),
-            mean_total_killed = mean(`TOTAL KILLED`, na.rm = T),
+  summarise(mean_crash = round(mean(`TOTAL CRASH`, na.rm = T), 5),
+            mean_injured_killed = round(mean(`TOTAL INJURED KILLED`, na.rm = T), 5),
+            mean_vunerable = round(mean(`TOTAL VULNERABLE CRASHES`, na.rm = T), 6), # lower numbers so more digits
             .groups = "drop")
 
+# get raw counts over the years
+summed_data <- crash_data %>% 
+  group_by(County, Municipality, GEOID10, Municipality_County) %>% 
+  summarise(total_crashes = sum(`TOTAL CRASH`),
+            total_people_injured_killed = sum(`TOTAL KILLED`) + sum(`TOTAL INJURED`),
+            total_vulnerable_crashes = sum(`PEDESTRIAN COUNT`) + sum(`BICYCLE COUNT`))
 
+# what is the most recent year of data?
+recent_year <- max(crash_data$`Crash Year`)
+  
 ```
 
-### Here is a table
+## Purpose
+
+This yearly report, provided to the Office of Safe Streets (OSS), will provide a high level overview of municipal-level crash data for the region.
+
+## Methodology
+
+asfajskdlfj
+
+## Limitations
+
+Many shortcuts were taken! For example, crash data per capita was computed using 2015 'forecasts' as opposed to actual population data for the given crash year. The purpose of this exercise was to demonstrate a prototype deliverable and illustrate future opportunities for improvement, etc. without strict regard for data accuracy or any sort of in-depth analysis. Because data was retrieved from DVRPC's data catalog, it is assumed that most, if not all of the data, has already been thoroughly screened and vetted before being publicly released.
+
+```{r}
+#| include: false
+top_crash_data <- retrieve_summary_info(per_capita_data, crash_data, `TOTAL CRASH`, recent_year)
+top_people_data <- retrieve_summary_info(per_capita_data, crash_data, `TOTAL INJURED KILLED`, recent_year)
+top_vulnerable_data <- retrieve_summary_info(per_capita_data, crash_data, `TOTAL VULNERABLE CRASHES`, recent_year)
+```
+
+## Key Findings:
+
+-   For the most recent year of data (`r recent_year`), **`r top_crash_data$municipality`** was the top municipality with the highest mean yearly crashes per capita of all municipalities in the region.
+
+    -   During the most recent year of data, out of an estimated population of **`r top_crash_data$pop`**, **`r top_crash_data$crashes`** crashes occurred, **`r top_crash_data$people`** people were killed or injured, and **`r top_crash_data$vulnerable`** crashes involved vulnerable road users (i.e. pedestrians and cyclists).
+
+-   **`r top_people_data$municipality`** was the top municipality with the highest mean yearly people injured or killed per capita of all municipalities in the region.
+
+    -   During the most recent year, out of an estimated population of **`r top_people_data$pop`**, **`r top_people_data$crashes`** crashes occurred, **`r top_people_data$people`** people were killed or injured, and **`r top_people_data$vulnerable`** crashes involved vulnerable road users.
+
+-   **`r top_vulnerable_data$municipality`** was the top municipality with the highest mean crashes involving vulnerable users per capita of all municipalities in the region.
+
+    -   During the most recent year, out of an estimated population of **`r top_vulnerable_data$pop`**, **`r top_vulnerable_data$crashes`** crashes occurred, **`r top_vulnerable_data$people`** people were killed or injured, and **`r top_vulnerable_data$vulnerable`** crashes involved vulnerable road users.
+
+<!-- -   \[County\] has had the highest mean yearly crashes per capita of all counties in the region. -->
+
+<!--     -   During the past year, x-crashes occurred, y-people were killed or injured, and z-crashes involved vulnerable road users. -->
+
+### County overview
+
+```{r}
+#| echo: false
+#| warning: false
+#| fig-cap: Total crashes per capita, by year, for counties and their various municipalities.
+# scale x axis every two years
+# x axis labeling only on bottom
+
+per_capita_data %>% 
+  # filter(!County %in% c("Philadelphia", "Camden")) %>%
+  ggplot(aes(x = `Crash Year`, y = `TOTAL CRASH`, color = Municipality)) +
+  geom_line() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  facet_wrap(~County, scales = "free")
+```
+
+### Table of most recent data (municipalities ranked)
+
+### Table of most recent data (counties ranked)
+
+### Table of most recent data (top_n of every county)
 
 ```{r}
 #| label: gt table
 #| include: false
 
-summary_per_capita_data %>% 
-  filter(`Crash Year` == max(summary_per_capita_data$`Crash Year`)) %>% 
-  # could add a select here to only show the 'main variable' you want
-  arrange(desc(mean_crash)) %>% 
-  gt()
+# summary_per_capita_data %>% 
+#   filter(`Crash Year` == max(summary_per_capita_data$`Crash Year`)) %>% 
+#   # could add a select here to only show the 'main variable' you want
+#   arrange(desc(mean_crash)) %>% 
+#   gt()
 ```
 
-### Here is a plot
+```{r}
+#| include: false
+# per_capita_data %>% 
+#   filter(`Crash Year` == max(per_capita_data$`Crash Year`)) %>% 
+#   # could add a select here to only show the 'main variable' you want
+#   arrange(desc(`TOTAL CRASH`)) %>% 
+#   head(10) %>% 
+#   gt()
+```
 
 ```{r}
 #| label: plot
@@ -102,9 +189,8 @@ summary_per_capita_data %>%
 # classic theme
 # direct labels
 # labeling
-summary_per_capita_data %>% 
-  ggplot(aes(x = `Crash Year`, y = mean_crash, color = County)) +
-  geom_line(linewidth = 1.5)
+# summary_per_capita_data %>% 
+#   ggplot(aes(x = `Crash Year`, y = mean_crash, color = County)) +
+#   geom_line(linewidth = 1.5)
 
 ```
-

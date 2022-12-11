@@ -72,9 +72,11 @@ write_parquet(dataset_details, here::here("2022_exercise", file_name))
 # fix names further to jive with each other...
 # or downselect / rename to exactly what you need
 # then, divide all crash cols by 2015 population
-per_capita_data <- crash_data %>% 
+crash_data <- crash_data %>% 
   left_join(pop_data %>% 
-              select('county id':'2015', 'GEOID10')) %>% 
+              select('county id':'2015', 'GEOID10'))
+
+per_capita_data <- crash_data %>% 
   mutate_at(vars(`TOTAL CRASH`:`BICYCLISTS KILLED`), ~(. / `2015`))
 
 # will have to think of some interesting groupings
@@ -88,3 +90,6 @@ per_capita_data <- crash_data %>%
 
 # gt table function
 
+
+
+get_topline_numbers(crash_data %>% filter(`Crash Year` == 2020), "Bass River Township", "TOTAL INJURED KILLED")
