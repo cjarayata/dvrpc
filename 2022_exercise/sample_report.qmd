@@ -10,56 +10,28 @@ date: "`r format(lubridate::today(), '%B %d, %Y')`"
 ---
 
 ```{r}
-#| label: load-packages
+#| label: load-functions
 #| include: false
 
-library(tidyverse)
-library(janitor)
-library(lubridate)
-library(ckanr)
-library(here)
-library(arrow)
-library(gt)
-library(glue)
-library(ggplot2)
-
-source("report_functions.R")
+source("report_functions_data.R")
 ```
 
 ```{r}
-#| label: load-data
+#| label: save-data
 #| include: false
 
-# define/set up CKAN connection
-ckan_con <- src_ckan("https://catalog.dvrpc.org/")
-ckanr_setup("https://catalog.dvrpc.org/")
+# if this report is actually rendering, that means the current
+# data is newer, and thus we should save it off as the 'new' version of the cache
+# to compare against going forward
+file_name <- "cache_data_details.parquet"
+write_parquet(new_data_details, file_name)
+```
 
-# read in crash data and metadata
-crash_resource <- "ce75c010-3a79-4a67-b7b6-0e16fb83edaf"
-crash_meta <- resource_show(id = crash_resource, as = "table") # meta data
-crash_last_mod <- ymd_hms(crash_meta$last_modified)
 
-crash_data <- tbl(src = ckan_con$con, from = crash_resource) %>% 
-  as_tibble() %>% 
-  select(-c('_full_text', '_id')) %>% 
-  rename("Municipality" = "MCD Name") %>% 
-  mutate(County = str_remove_all(County, " County"),
-         `TOTAL INJURED KILLED` = `TOTAL KILLED` + `TOTAL INJURED`,
-         `TOTAL VULNERABLE CRASHES` = `PEDESTRIAN COUNT` + `BICYCLE COUNT`,
-         Municipality_County = glue("{Municipality} ({County})"))
-
-# read in pop data and metadata
-pop_resource <- "edbf137e-acc1-4543-8f71-c7ecbae67951"
-pop_meta <- resource_show(id = pop_resource, as = "table")
-pop_last_mod <- ymd_hms(pop_meta$last_modified)
-
-pop_data <- tbl(src = ckan_con$con, from = pop_resource) %>% 
-  as_tibble() %>% 
-  select(-c('_full_text', '_id')) %>% 
-  rename("Municipality" = "Municipality or District",
-         "GEOID10" = "mcd/cpa id") %>% 
-  mutate(GEOID10 = as.character(GEOID10))
-
+```{r}
+#| label: clean-data
+#| include: false
+# the raw data needs a bit of cleaning:
 # two municipalities seem to have very low population; filter to only places
 # with at least 100 projected residents in 2015 in both datasets
 bad_municipalities <- pop_data %>% 
@@ -70,8 +42,6 @@ crash_data <- crash_data %>%
   filter(!Municipality %in% bad_municipalities)
 
 # join datasets
-# fix names further to jive with each other...
-# or downselect / rename to exactly what you need
 # then, divide all crash cols by 2015 population
 crash_data <- crash_data %>% 
   left_join(pop_data %>% 
@@ -80,6 +50,7 @@ crash_data <- crash_data %>%
 per_capita_data <- crash_data %>% 
   mutate_at(vars(`TOTAL CRASH`:`TOTAL VULNERABLE CRASHES`), ~(. / `2015`))
 
+# create some summary versions of the datasets
 summary_per_capita_data <- per_capita_data %>% 
   group_by(County, `Crash Year`) %>% 
   summarise(mean_crash = round(mean(`TOTAL CRASH`, na.rm = T), 5),
