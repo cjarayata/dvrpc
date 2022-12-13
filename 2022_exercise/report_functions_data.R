@@ -11,6 +11,10 @@ library(glue)
 library(ggplot2)
 library(quarto)
 
+# define resource IDs
+crash_resource <- "ce75c010-3a79-4a67-b7b6-0e16fb83edaf"
+pop_resource <- "edbf137e-acc1-4543-8f71-c7ecbae67951"
+
 ###############################
 # functions ####
 # create a go-no-go decision by comparing cache vs. new data on several parameters,
@@ -124,7 +128,7 @@ ckan_con <- src_ckan("https://catalog.dvrpc.org/")
 ckanr_setup("https://catalog.dvrpc.org/")
 
 # read in crash data and metadata
-crash_resource <- "ce75c010-3a79-4a67-b7b6-0e16fb83edaf"
+
 crash_meta <- resource_show(id = crash_resource, as = "table") # meta data
 crash_last_mod <- ymd_hms(crash_meta$last_modified)
 
@@ -138,7 +142,7 @@ crash_data <- tbl(src = ckan_con$con, from = crash_resource) %>%
          Municipality_County = glue("{Municipality} ({County})"))
 
 # read in pop data and metadata
-pop_resource <- "edbf137e-acc1-4543-8f71-c7ecbae67951"
+
 pop_meta <- resource_show(id = pop_resource, as = "table")
 pop_last_mod <- ymd_hms(pop_meta$last_modified)
 

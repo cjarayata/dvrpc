@@ -4,9 +4,11 @@ format: docx
 editor: visual
 ---
 
+*Last Updated: `r format(lubridate::today(), '%B %d, %Y')`*
+
 ## Purpose
 
-The purpose of this document is to allow a DVRPC staff member to understand the infrastructure needed to produce, maintain, and potentially further build the Yearly Municipal Crash Report for the Office of Safe Streets.
+The purpose of this document is to allow a DVRPC staff member to understand the infrastructure needed to produce, maintain, and potentially further build out the Yearly Municipal Crash Report for the Office of Safe Streets.
 
 ## A High Level Overview
 
@@ -37,18 +39,20 @@ The files needed are:
 
 ## Rendering a Report
 
-In order to render a report, the user can `source` the script, either within an interactive R session (e.g. `source("construct_report.R")`), or by running it via command line (e.g. `Rscript construct_report.R`)\`. The latter is useful for task-scheduling or other automated processes. The way that the script is written, it should either produce a new report or not, depending on the state of the latest data.
+In order to render a report, the user can `source` the script, either within an interactive R session (e.g. `source("construct_report.R")`), or by running it via command line (e.g. `Rscript construct_report.R`). The latter is useful for task-scheduling or other automated processes. The way that the script is written, it should either produce a new report or not, depending on the state of the latest data.
 
 Knowing that these data sets represent yearly data, it may be prudent to only run these reports on, say, January 15th of each year, to give enough time for end-of-year data to be vetted and pushed out to the DVRPC Data Catalog.
 
 ## Troubleshooting
 
-Errors in the `tidyverse`-era of R are generally very well-defined and helpful. Ready the error carefully to understand where and why the error occurred. Just based on which script the error occurred within, hopefully it is straightforward to address and get the code pipeline back up and running.
+Errors in the `tidyverse`-era of R are generally very well-defined and helpful. Read the error carefully to understand where and why the error occurred. Simply identifying where in the pipeline the error occurred will hopefully be enough to address the issue and get things back up and running.
 
 The most likely sources of future errors are:
 
-1.  The DVRPC Data Catalog has changed in some way, and the current code can no longer find variables because they have changed from `TOTAL CRASH` to `Total Crashes`, for example. The complications may be more nuanced; the `CRASH YEAR` might be a `character` one time and then `numeric` another.
+1.  The DVRPC Data Catalog has changed in some way, and the current code resource IDs or specific variables fail to pull the right data or can't find the right variables. This might be an easy fix such as exploring the Data Catalog and updating the resource pointer, or updating the code from `TOTAL CRASH` to `Total Crashes`. The complications may be more nuanced; the `CRASH YEAR` might be a `character` one time and then `numeric` another.
 2.  Functions or syntax in R-packages that are used here have become deprecated or have changed slightly, leading to messages at best to errors at worst. Try to keep up with the latest versions of packages and read the package release notes, etc. Stackoverflow is your friend.
+
+Testing your code in interactive or staging-like environments is preferred before the code goes into production.
 
 ## Future To-Do List
 
